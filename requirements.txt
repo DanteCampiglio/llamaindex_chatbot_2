@@ -1,0 +1,13 @@
+streamlit
+llama-index
+llama-cpp-python
+llama-index-llms-llama-cpp
+llama-index-embeddings-huggingface
+llama-index-vector-stores-chroma
+chromadb
+python-dotenv
+loguru
+pymupdf
+pathlib
+sentence-transformers
+pydantic-settings>=2.0.0
