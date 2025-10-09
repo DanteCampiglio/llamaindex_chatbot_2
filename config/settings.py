@@ -1,159 +1,190 @@
-import os
-from dotenv import load_dotenv
-from llama_index.core import Settings
-from llama_index.vector_stores.chroma import ChromaVectorStore
-import chromadb
-import streamlit as st
 from pathlib import Path
+from pydantic_settings import BaseSettings
+from typing import ClassVar, Dict, List
 
-# LLMs y embeddings
-from llama_index.llms.llama_cpp import LlamaCPP
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+class Config(BaseSettings):
+    """Configuración de la aplicación"""
 
-load_dotenv()
+    # ========== RUTAS BASE ==========
+    BASE_DIR: Path = Path(__file__).parent.parent
+    DATA_DIR: Path = BASE_DIR / "data"
+    MODELS_DIR: Path = BASE_DIR / "models"
+    LOG_DIR: Path = BASE_DIR / "logs"
 
-class Config:
-    # 🔥 FORZAR MODO LOCAL (ignorar .env)
-    MODE = "local"  # ✅ HARDCODEADO - NO usar os.getenv()
+    # ========== DIRECTORIOS DE DATOS ==========
+    PDF_DIR: Path = DATA_DIR / "raw/pdfs"
+    EMBEDDING_CACHE_DIR: Path = DATA_DIR / "embedding_cache"
+    CHROMA_DB_PATH: Path = DATA_DIR / "chroma_db"
 
-    # Local model
-    PDF_DIR = os.getenv("PDF_DIR", "./data/raw/pdfs")  
+    # ========== CHROMADB ==========
+    CHROMA_COLLECTION_NAME: str = "syngenta_docs"
+    CHROMA_DISTANCE_FUNCTION: str = "cosine"
 
-    # 🔥 NUEVO MODELO LLAMA 3.2 3B - MUCHO MÁS RÁPIDO
-    MISTRAL_MODEL_PATH = Path(r"./models/llama32-3b/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
+    # ========== MODELO LLAMA ==========
+    LLAMA_MODEL_PATH: Path = MODELS_DIR / "llama32-3b" / "Llama-3.2-3B-Instruct-Q4_K_M.gguf"
+    LLAMA_CONTEXT_SIZE: int = 8192
+    LLAMA_MAX_TOKENS: int = 140
+    LLAMA_TEMPERATURE: float = 0.7
+    LLAMA_N_GPU_LAYERS: int = -1
+    LLAMA_N_THREADS: int = 8
+    LLAMA_N_BATCH: int = 512
 
-    INDEX_DIR = Path(os.getenv("INDEX_DIR", "./data/processed/index")) 
-    
-    # Vector DB
-    VECTOR_DB_TYPE = os.getenv("VECTOR_DB_TYPE", "chroma")  
-    CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "./data/processed/chroma_db")
-    COLLECTION_NAME = os.getenv("COLLECTION_NAME", "safety_sheets")
-    
-    # 🔥 CHUNKING - MANTENER CONFIGURACIÓN ORIGINAL
-    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1024))  # ✅ ORIGINAL
-    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 200))  # ✅ ORIGINAL
-    
-    # 🔥 QUERY - MANTENER CONFIGURACIÓN ORIGINAL
-    TOP_K = int(os.getenv("TOP_K", 5))  # ✅ ORIGINAL
-    TEMPERATURE = float(os.getenv("TEMPERATURE", 0.1))
+    # ========== PARÁMETROS ANTI-LOOP ==========
+    LLAMA_STOP_SEQUENCES: List[str] = [
+        "¿Quieres", "\n\n\n", "PREGUNTA:", "CONTEXTO:", "###",
+        "Usuario:", "Asistente:", "RESPUESTA:", "\n\nPREGUNTA"
+    ]
+    LLAMA_REPEAT_PENALTY: float = 1.5
+    LLAMA_TOP_P: float = 0.85
+    LLAMA_TOP_K: int = 30
 
-    # 🔥 PROMPTS CENTRALIZADOS - MÁS CONCISOS
-    PROMPTS = {
-        "system_prompt": """Eres un experto asistente de IA de Syngenta especializado en agricultura. 
-Responde siempre en español con tono profesional pero accesible. 
-Enfócate en soluciones prácticas para agricultores.""",
+    # ========== EMBEDDINGS ==========
+    EMBEDDING_DIMENSIONS: int = 512
+    EMBEDDING_MODEL: str = "llama"
+    EMBEDDING_MODEL_NAME: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 
-        "qa_template": """Eres un experto asistente de IA de Syngenta especializado en agricultura.
+    # ========== CHUNKING ==========
+    CHUNK_SIZE: int = 512
+    CHUNK_OVERLAP: int = 128
 
-Contexto relevante:
-{context_str}
+    # ========== RETRIEVAL ==========
+    SIMILARITY_TOP_K: int = 5
+    RESPONSE_MODE: str = "compact"
+    RETRIEVER_MODE: str = "hybrid"
+   # BM25_K1: float = 1.2
+   # BM25_B: float = 0.75
+    QUERY_FUSION_NUM_QUERIES: int = 1
+    QUERY_FUSION_MODE: str = "reciprocal_rerank"
 
-Pregunta del usuario: {query_str}
+    # ========== LIMPIEZA DE RESPUESTAS ==========
+    RESPONSE_METADATA_KEYWORDS: List[str] = [
+        'page_label:', 'file_path:', 'FICHA DE DATOS DE SEGURIDAD',
+        'según el Reglamento', 'Versión', 'Fecha de revisión:',
+        'Número SDS:', 'Fecha de la última expedición:',
+        'Fecha de la primera expedición:'
+    ]
+    RESPONSE_TEXT_PREVIEW_LENGTH: int = 200
+    RESPONSE_DEBUG_PREVIEW_LENGTH: int = 50
 
-Instrucciones:
-- Responde en español como experto en agricultura de Syngenta
-- Usa SOLO información del contexto proporcionado
-- Si no tienes información suficiente, dilo claramente
-- Incluye referencias específicas cuando sea posible
-- Enfócate en soluciones prácticas para agricultores
+    # ========== PROMPTS ==========
+    PROMPTS: ClassVar[Dict[str, str]] = {
+        "qa_template": """
+CONTEXTO: {context_str}
 
-Respuesta:"""
+PREGUNTA: {query_str}
+
+Si la respuesta está en el contexto, responde con precisión.
+Si NO está en el contexto, di: "No encuentro esa información en los documentos"
+
+RESPUESTA:""",
+        "refine_template": """
+Pregunta: {query_str}
+Respuesta actual: {existing_answer}
+Nuevo contexto: {context_msg}
+
+Mejora la respuesta solo si el nuevo contexto aporta información relevante.
+""",
+        "system": "Responde solo con información del documento."
     }
 
-    # 🔥 SYSTEM PROMPT OPTIMIZADO PARA LLAMA 3.2
-    LLM_SYSTEM_PROMPT = """Eres un asistente especializado en seguridad de productos Syngenta. 
-SIEMPRE responde en ESPAÑOL. 
-Proporciona respuestas concisas y específicas basadas únicamente en la información de las fichas de seguridad proporcionadas.
-Si no encuentras información específica, di "No encuentro esa información en las fichas disponibles"."""
+    # ========== LOGGING ==========
+    LOG_LEVEL: str = "INFO"
 
-    # 🔥 CONFIGURACIÓN QUERY ENGINE - MANTENER ORIGINAL
-    QUERY_ENGINE_CONFIG = {
-        "similarity_top_k": 3,  # ✅ ORIGINAL
-        "response_mode": "compact",
-        "streaming": False
-    }
+    # ========== LÍMITES DE CONTEXTO ==========
+    MAX_CONTEXT_TOKENS: int = 6000
+    RESERVED_TOKENS_FOR_RESPONSE: int = 2048
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = True
+        extra = "ignore"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._create_directories()
+
+    def _create_directories(self):
+        """Crea todos los directorios necesarios"""
+        for dir_path in [
+            self.PDF_DIR,
+            self.CHROMA_DB_PATH,
+            self.EMBEDDING_CACHE_DIR,
+            self.LOG_DIR
+        ]:
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def llama_model_kwargs(self) -> Dict:
+        """Genera model_kwargs para LlamaCPP dinámicamente"""
+        return {
+            "n_gpu_layers": self.LLAMA_N_GPU_LAYERS,
+            "n_threads": self.LLAMA_N_THREADS,
+            "n_batch": self.LLAMA_N_BATCH,
+            "n_ctx": self.LLAMA_CONTEXT_SIZE,
+            "stop": self.LLAMA_STOP_SEQUENCES,
+            "repeat_penalty": self.LLAMA_REPEAT_PENALTY,
+            "top_p": self.LLAMA_TOP_P,
+            "top_k": self.LLAMA_TOP_K,
+        }
+
+    @property
+    def response_cleaning(self) -> Dict:
+        """Configuración de limpieza de respuestas"""
+        return {
+            "metadata_keywords": self.RESPONSE_METADATA_KEYWORDS,
+            "text_preview_length": self.RESPONSE_TEXT_PREVIEW_LENGTH,
+            "debug_preview_length": self.RESPONSE_DEBUG_PREVIEW_LENGTH
+        }
+
+    def validate_context_size(self) -> bool:
+        """Valida coherencia de configuración de contexto"""
+        estimated_context = (self.CHUNK_SIZE * self.SIMILARITY_TOP_K) + 1000
+        available = self.LLAMA_CONTEXT_SIZE - self.LLAMA_MAX_TOKENS - 500
+
+        if estimated_context > available:
+            from loguru import logger
+            logger.warning("⚠️ Configuración de contexto puede causar overflow:")
+            logger.warning(f"   Estimado: {estimated_context} tokens")
+            logger.warning(f"   Disponible: {available} tokens")
+            logger.warning("   Recomendación: Reducir CHUNK_SIZE o SIMILARITY_TOP_K")
+            return False
+        return True
 
 # Instancia global
 settings = Config()
 
+
 def setup_llama_index():
-    """Configura LlamaIndex FORZANDO modo local con Llama 3.2 3B"""
-    
-    # 🔥 LOGS DETALLADOS
-    print(f"🔧 MODO CONFIGURADO: {settings.MODE}")
-    print(f"🤖 MODELO PATH: {settings.MISTRAL_MODEL_PATH}")
-    print(f"📁 ARCHIVO EXISTE: {settings.MISTRAL_MODEL_PATH.exists()}")
-    print(f"📊 TAMAÑO ARCHIVO: {settings.MISTRAL_MODEL_PATH.stat().st_size / (1024**3):.2f} GB" if settings.MISTRAL_MODEL_PATH.exists() else "❌ NO EXISTE")
+    """Configura LLM de LlamaIndex con parámetros anti-loop"""
+    from llama_index.core import Settings
+    from llama_index.llms.llama_cpp import LlamaCPP
+    from loguru import logger
 
-    # 🔥 VERIFICAR QUE EL ARCHIVO EXISTE
-    if not settings.MISTRAL_MODEL_PATH.exists():
-        raise FileNotFoundError(f"❌ MODELO NO ENCONTRADO: {settings.MISTRAL_MODEL_PATH}")
-    
-    print("🚀 Inicializando LlamaCPP con Llama 3.2 3B LOCAL...")
-    
-    # 🔥 LLM LOCAL - PARÁMETROS CORREGIDOS
+    if not settings.validate_context_size():
+        logger.warning("⚠️ Continuando con configuración que puede causar problemas...")
+
     llm = LlamaCPP(
-        model_path=str(settings.MISTRAL_MODEL_PATH),
-        temperature=settings.TEMPERATURE,
-        max_new_tokens=512,  # ✅ MANTENER ORIGINAL
-        context_window=4096,  # ✅ MANTENER ORIGINAL
-        verbose=True,
-        system_prompt=settings.PROMPTS["system_prompt"],  # 🔥 USAR PROMPT NUEVO Y CONCISO
-        # 🔥 TODOS LOS PARÁMETROS ESPECÍFICOS VAN EN model_kwargs
-        model_kwargs={
-            #"n_ctx": 1024,  # ✅ MOVIDO A model_kwargs
-            "n_batch": 256,  # ✅ MOVIDO A model_kwargs
-            "n_threads": None,  # ✅ MOVIDO A model_kwargs (auto-detect)
-            "use_mmap": True,  # ✅ MOVIDO A model_kwargs
-            "use_mlock": False,  # ✅ MOVIDO A model_kwargs
-            "n_gpu_layers": 0,  # Sin GPU para CPU puro
-            "f16_kv": True,  # Float16 para KV cache
-        }
+        model_path=str(settings.LLAMA_MODEL_PATH),
+        temperature=settings.LLAMA_TEMPERATURE,
+        max_new_tokens=settings.LLAMA_MAX_TOKENS,
+        context_window=settings.LLAMA_CONTEXT_SIZE,
+        model_kwargs=settings.llama_model_kwargs,  # ✅ Uso de property
+        verbose=False,
     )
-    
-    print("✅ LlamaCPP inicializado correctamente con Llama 3.2 3B")
-    print("🚀 Inicializando embeddings locales...")
-    
-    # 🔥 EMBEDDINGS LOCALES
-    embed_model = HuggingFaceEmbedding(
-        model_name="BAAI/bge-small-en-v1.5",
-        cache_folder="./model/embeddings"
-    )
-    
-    print("✅ Embeddings locales inicializados")
-    
-    # Vector store
-    chroma_client = chromadb.PersistentClient(path=settings.CHROMA_DB_PATH)
-    chroma_collection = chroma_client.get_or_create_collection(settings.COLLECTION_NAME)
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-    
-    # Settings globales - MANTENER CONFIGURACIÓN ORIGINAL
+
+    logger.info("🤖 LLM Configurado:")
+    logger.info(f"   ├─ Model: {settings.LLAMA_MODEL_PATH.name}")
+    logger.info(f"   ├─ Context Window: {settings.LLAMA_CONTEXT_SIZE}")
+    logger.info(f"   ├─ Max Tokens: {settings.LLAMA_MAX_TOKENS}")
+    logger.info(f"   ├─ Temperature: {settings.LLAMA_TEMPERATURE}")
+    logger.info(f"   ├─ GPU Layers: {settings.LLAMA_N_GPU_LAYERS}")
+    logger.info(f"   ├─ Threads: {settings.LLAMA_N_THREADS}")
+    logger.info(f"   ├─ Repeat Penalty: {settings.LLAMA_REPEAT_PENALTY}")
+    logger.info(f"   └─ Stop Sequences: {len(settings.LLAMA_STOP_SEQUENCES)} configuradas")
+
     Settings.llm = llm
-    Settings.embed_model = embed_model
-    Settings.chunk_size = settings.CHUNK_SIZE  # ✅ 1024 ORIGINAL
-    Settings.chunk_overlap = settings.CHUNK_OVERLAP  # ✅ 200 ORIGINAL
-    
-    print("🎯 CONFIGURACIÓN COMPLETADA - LLAMA 3.2 3B CON CONFIGURACIÓN ORIGINAL")
-    
-    return llm, embed_model, vector_store
+    Settings.chunk_size = settings.CHUNK_SIZE
+    Settings.chunk_overlap = settings.CHUNK_OVERLAP
 
-def get_chroma_collection():
-    """Obtiene la colección de Chroma"""
-    chroma_client = chromadb.PersistentClient(path=settings.CHROMA_DB_PATH)
-    return chroma_client.get_or_create_collection(settings.COLLECTION_NAME)
-
-# Test directo
-if __name__ == "__main__":
-    print("🔥 PROBANDO CONFIGURACIÓN LOCAL CON LLAMA 3.2 3B...")
-    llm, embed_model, vector_store = setup_llama_index()
-    print(f"✅ LlamaIndex configurado en modo {settings.MODE}")
-    print(f"🤖 LLM tipo: {type(llm)}")
-    print(f"📊 Embed tipo: {type(embed_model)}")
-    
-    # 🔥 TEST DEL SYSTEM PROMPT
-    print("\n🧪 PROBANDO SYSTEM PROMPT...")
-    try:
-        response = llm.complete("¿Qué es Syngenta?")
-        print(f"✅ RESPUESTA: {response}")
-    except Exception as e:
-        print(f"❌ ERROR: {e}")
+    return llm, None, None

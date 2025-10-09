@@ -1,13 +1,79 @@
-streamlit
-llama-index
-llama-cpp-python
-llama-index-llms-llama-cpp
-llama-index-embeddings-huggingface
-llama-index-vector-stores-chroma
-chromadb
-python-dotenv
-loguru
-pymupdf
-pathlib
-sentence-transformers
-pydantic-settings>=2.0.0
+# ========================================================================
+# SYNGENTA RAG - Requirements Completos y Definitivos
+# ========================================================================
+# Versión: 1.0.0
+# Fecha: 2025-01-XX
+# ========================================================================
+
+# ========================================================================
+# CORE - LlamaIndex Framework
+# ========================================================================
+llama-index-core==0.10.11
+llama-index-embeddings-huggingface==0.1.4
+
+# ========================================================================
+# VECTOR STORE - ChromaDB
+# ========================================================================
+chromadb==0.4.22
+chromadb-client==0.4.22
+
+# ========================================================================
+# LLM LOCAL - Llama CPP (GGUF)
+# ========================================================================
+llama-cpp-python==0.2.27
+
+# 🔧 INSTALACIÓN CON ACELERACIÓN:
+# 
+# GPU NVIDIA (CUDA):
+# CMAKE_ARGS="-DLLAMA_CUDA=on" pip install llama-cpp-python --force-reinstall --no-cache-dir
+#
+# Mac M1/M2/M3 (Metal):
+# CMAKE_ARGS="-DLLAMA_METAL=on" pip install llama-cpp-python --force-reinstall --no-cache-dir
+#
+# CPU optimizado (OpenBLAS):
+# CMAKE_ARGS="-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS" pip install llama-cpp-python --force-reinstall --no-cache-dir
+
+# ========================================================================
+# RETRIEVERS - BM25 y Hybrid Search
+# ========================================================================
+llama-index-retrievers-bm25==0.1.3
+rank-bm25==0.2.2
+
+# Dependencias para BM25:
+nltk==3.8.1
+scikit-learn==1.3.2
+
+# ========================================================================
+# DOCUMENT PROCESSING
+# ========================================================================
+pypdf==3.17.4
+tiktoken==0.5.2
+
+# ========================================================================
+# UTILITIES
+# ========================================================================
+loguru==0.7.2
+python-dotenv==1.0.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# ========================================================================
+# OPTIONAL - Performance Boost
+# ========================================================================
+# sentence-transformers==2.2.2  # Embeddings semánticos reales
+# faiss-cpu==1.7.4  # Vector store más rápido que ChromaDB
+# pymupdf==1.23.8  # Mejor procesamiento de PDFs complejos
+
+# ========================================================================
+# OPTIONAL - Monitoring
+# ========================================================================
+# opentelemetry-api==1.20.0
+# opentelemetry-sdk==1.20.0
+
+# ========================================================================
+# DEVELOPMENT - Testing y Linting
+# ========================================================================
+# pytest==7.4.3
+# pytest-asyncio==0.21.1
+# black==23.12.1
+# ruff==0.1.9
