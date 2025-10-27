@@ -180,7 +180,7 @@ def main():
         return
     
     # ========== 7. CONSULTA DE PRUEBA ==========
-    test_query = "¿Que hacer en caso de incendio con AMISTAR?"
+    test_query = "¿Cual es un buen consejo de prudencia para ACELEPRYN?"
     print(f"\n💬 Consulta de prueba: '{test_query}'")
     print("⏳ Procesando (puede tardar con Llama local)...")
     

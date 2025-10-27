@@ -50,7 +50,7 @@ class Config(BaseSettings):
     # ========== RETRIEVAL ==========
     SIMILARITY_TOP_K: int = 5
     RESPONSE_MODE: str = "compact"
-    RETRIEVER_MODE: str = "hybrid"
+    RETRIEVER_MODE: str = "similarity"
    # BM25_K1: float = 1.2
    # BM25_B: float = 0.75
     QUERY_FUSION_NUM_QUERIES: int = 1

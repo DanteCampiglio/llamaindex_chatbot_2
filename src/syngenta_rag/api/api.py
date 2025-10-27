@@ -120,7 +120,7 @@ def query_documents(request: QueryRequest):
     Ejemplo de uso en n8n:
     - Method: POST
     - URL: http://localhost:8000/query
-    - Body JSON: {"question": "¿Qué hacer en caso de incendio?"}
+    - Body JSON: {"question": "¿Qué hacer en caso de incendio con Abofol?"}
     """
     # Validar que el sistema esté listo
     if query_engine is None:
