@@ -1,0 +1,19 @@
+# Git/VC
+.git
+.gitignore
+
+# Python cache/venv
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+
+# Editor/OS
+.DS_Store
+.idea/
+.vscode/
+
+# Local env and data (montar como volumen en runtime)
+proyecto_cero/.env
+proyecto_cero/data/
+
