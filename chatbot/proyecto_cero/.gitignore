@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Virtual envs
+.venv/
+venv/
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/
+
+# Project data/cache
+data/interim/
+data/index/
+
+# Secrets
+.env
+

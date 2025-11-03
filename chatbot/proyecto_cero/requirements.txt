@@ -1,0 +1,21 @@
+# Core PDF ingestion
+pymupdf>=1.24.0
+
+# Vector store + embeddings
+chromadb>=1.3.0
+sentence-transformers>=2.7.0
+
+# LLM providers (elige uno por .env)
+openai>=1.52.2
+ollama>=0.4.4
+groq>=0.11.0
+
+# Env loader
+python-dotenv>=1.0.1
+
+# AWS Bedrock SDK (opcional si vas a usar Bedrock)
+boto3>=1.34.0
+
+# API REST
+fastapi>=0.115.0
+uvicorn>=0.30.0
